@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Kanban Móvil Friendly</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1 { text-align: center; }
+    .board { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+    .column { 
+      flex: 1; 
+      min-width: 250px;
+      background: #f9f9f9; 
+      padding: 10px; 
+      border-radius: 5px; 
+      border: 1px solid #ccc; 
+      max-height: 70vh; 
+      overflow-y: auto;
+    }
+    .column h2 { text-align: center; margin-top: 0; }
+    .card { background: #fff; border: 1px solid #aaa; border-radius: 3px; padding: 5px; margin: 5px 0; }
+    .card button { margin: 2px; font-size: 12px; }
+    .metrics { margin-top: 20px; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background: #eef; }
+    .actions { margin-top: 10px; }
+    .actions button { padding: 8px 12px; margin-right: 10px; margin-top: 5px; }
+    .load-more { display: block; margin: 10px auto; padding: 5px 10px; }
+    input { width: 200px; padding: 5px; margin-right: 5px; }
+  </style>
+</head>
+<body>
+<h1>Tablero Kanban</h1>
+
+<div>
+  <input type="text" id="newDoc" placeholder="Nuevo documento">
+  <button id="addBtn">Añadir</button>
+</div>
+
+<div class="actions">
+  <button id="restartBtn">🔄 Restart (volver al inicio)</button>
+</div>
+
+<div class="board">
+  <div class="column" id="toReview"><h2>Para revisar</h2></div>
+  <div class="column" id="inReview"><h2>En revisión</h2></div>
+  <div class="column" id="partial"><h2>Parcialmente cerrado</h2></div>
+  <div class="column" id="closed"><h2>Cerrado</h2></div>
+</div>
+
+<div class="metrics">
+  <h2>Métricas</h2>
+  <p>Total cerrados este mes: <span id="totalMonth">0</span></p>
+  <p>Media diaria desde inicio de mes: <span id="meanMonth">0</span></p>
+  <p>Media últimos 30 días: <span id="mean30">0</span></p>
+  <p>Media últimos 60 días: <span id="mean60">0</span></p>
+</div>
+
+<script>
+const today = new Date();
+const currentMonth = today.getMonth();
+const currentYear = today.getFullYear();
+
+// Generar 1000 docs
+function generateDocs(n){
+  const docs = [];
+  for(let i=1;i<=n;i++){
+    docs.push("DOC"+String(i).padStart(4,"0"));
+  }
+  return docs;
+}
+
+// Estado inicial
+const defaultBoard = {
+  toReview: generateDocs(1000),
+  inReview: [],
+  partial: [],
+  closed: []
+};
+
+// Cargar desde localStorage o default
+let boardData = JSON.parse(localStorage.getItem("kanbanData")) || structuredClone(defaultBoard);
+
+// Paginación
+let toReviewVisible = 50;
+
+// Guardar
+function save(){ localStorage.setItem("kanbanData", JSON.stringify(boardData)); }
+
+// Crear tarjeta con event listeners
+function makeCard(doc, col, idx){
+  const card = document.createElement("div");
+  card.className = "card";
+  const docName = typeof doc==="string"?doc:doc.name;
+
+  const title = document.createElement("strong");
+  title.innerText = docName;
+  card.appendChild(title);
+  card.appendChild(document.createElement("br"));
+
+  const columns = ["toReview","inReview","partial","closed"];
+  columns.forEach(target=>{
+    if(target!==col){
+      const btn = document.createElement("button");
+      btn.innerText = `→ ${target==="toReview"?"Para revisar":target==="inReview"?"En revisión":target==="partial"?"Parcial":"Cerrado"}`;
+      btn.addEventListener("click", ()=> move(col, idx, target));
+      card.appendChild(btn);
+    }
+  });
+
+  return card;
+}
+
+// Render
+function render(){
+  const columns = ["toReview","inReview","partial","closed"];
+  columns.forEach(col=>{
+    const div = document.getElementById(col);
+    div.innerHTML = `<h2>${div.querySelector("h2").innerText}</h2>`;
+    const items = boardData[col];
+
+    if(col==="toReview"){
+      items.slice(0,toReviewVisible).forEach((doc,idx)=> div.appendChild(makeCard(doc,col,idx)));
+      if(items.length>toReviewVisible){
+        const btn = document.createElement("button");
+        btn.className="load-more";
+        btn.innerText="Cargar más...";
+        btn.addEventListener("click", ()=> { toReviewVisible += 50; render(); });
+        div.appendChild(btn);
+      }
+    } else {
+      items.forEach((doc,idx)=> div.appendChild(makeCard(doc,col,idx)));
+    }
+  });
+  updateMetrics();
+}
+
+// Mover documentos
+function move(from,index,to){
+  const item = boardData[from].splice(index,1)[0];
+  if(to==="closed"){
+    const name = typeof item==="string"?item:item.name;
+    boardData[to].push({name, closedAt:new Date().toISOString().slice(0,10)});
+  } else {
+    const name = typeof item==="string"?item:item.name;
+    boardData[to].push(name);
+  }
+  save();
+  render();
+}
+
+// Añadir doc
+document.getElementById("addBtn").addEventListener("click", ()=>{
+  const val = document.getElementById("newDoc").value.trim();
+  if(val){ boardData.toReview.push(val); document.getElementById("newDoc").value=""; save(); render(); }
+});
+
+// Restart
+document.getElementById("restartBtn").addEventListener("click", ()=>{
+  if(confirm("¿Seguro que quieres reiniciar el tablero? Se borrará todo el progreso.")){
+    boardData = structuredClone(defaultBoard);
+    toReviewVisible = 50;
+    save();
+    render();
+  }
+});
+
+// Métricas
+function updateMetrics(){
+  const closed = boardData.closed;
+  const closedThisMonth = closed.filter(d=>{ const date=new Date(d.closedAt); return date.getMonth()===currentMonth && date.getFullYear()===currentYear; }).length;
+  const dayOfMonth = today.getDate();
+  const meanMonth = closedThisMonth>0?(closedThisMonth/dayOfMonth).toFixed(2):0;
+
+  const closedDates = closed.map(d=>new Date(d.closedAt));
+  const now = new Date();
+  function meanLastNDays(n){
+    const cutoff = new Date(); cutoff.setDate(now.getDate()-n);
+    const count = closedDates.filter(d=>d>=cutoff).length;
+    return count>0?(count/n).toFixed(2):0;
+  }
+
+  document.getElementById("totalMonth").innerText = closedThisMonth;
+  document.getElementById("meanMonth").innerText = meanMonth;
+  document.getElementById("mean30").innerText = meanLastNDays(30);
+  document.getElementById("mean60").innerText = meanLastNDays(60);
+}
+
+// Inicializar
+render();
+</script>
+</body>
+</html>
