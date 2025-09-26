@@ -2,9 +2,9 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Kanban Móvil Friendly</title>
+  <title>Kanban Mobile Friendly</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
+    body { font-family: Arial, sans-serif; margin: 10px; }
     h1 { text-align: center; }
     .board { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
     .column { 
@@ -18,13 +18,20 @@
       overflow-y: auto;
     }
     .column h2 { text-align: center; margin-top: 0; }
-    .card { background: #fff; border: 1px solid #aaa; border-radius: 3px; padding: 5px; margin: 5px 0; }
-    .card button { margin: 2px; font-size: 12px; }
+    .card { background: #fff; border: 1px solid #aaa; border-radius: 5px; padding: 10px; margin: 8px 0; }
+    .card button { margin: 5px 2px; font-size: 16px; padding: 8px 12px; border-radius: 4px; cursor: pointer; }
     .metrics { margin-top: 20px; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background: #eef; }
     .actions { margin-top: 10px; }
-    .actions button { padding: 8px 12px; margin-right: 10px; margin-top: 5px; }
-    .load-more { display: block; margin: 10px auto; padding: 5px 10px; }
-    input { width: 200px; padding: 5px; margin-right: 5px; }
+    .actions button, .load-more { padding: 12px 18px; font-size: 18px; border-radius: 5px; cursor: pointer; margin-top: 5px; }
+    input { width: 70%; max-width: 250px; padding: 8px; margin-right: 5px; font-size: 16px; }
+
+    /* Media query para móviles */
+    @media (max-width: 600px) {
+      .board { flex-direction: column; }
+      .column { max-height: 50vh; }
+      .card button { font-size: 18px; padding: 10px 14px; }
+      .actions button, .load-more { font-size: 20px; padding: 14px 20px; }
+    }
   </style>
 </head>
 <body>
